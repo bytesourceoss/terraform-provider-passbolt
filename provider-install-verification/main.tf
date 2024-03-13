@@ -1,7 +1,8 @@
 terraform {
   required_providers {
     passbolt = {
-      source = "hashicorp.com/edu/passbolt"
+      source = "opaas-cloud/passbolt"
+      version = "1.0.2"
     }
   }
 }
