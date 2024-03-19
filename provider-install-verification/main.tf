@@ -28,5 +28,6 @@ resource "passbolt_password" "test" {
   username = ""
   uri = ""
   folder_parent = ""
+  share_group = ""
 }
 
