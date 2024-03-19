@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/passbolt/go-passbolt/api"
+	"github.com/passbolt/go-passbolt/helper"
 	"terraform-provider-passbolt/tools"
 )
 
@@ -27,13 +27,13 @@ type passwordResource struct {
 }
 
 type passwordModel struct {
-	ID             types.String `tfsdk:"id"`
-	Name           types.String `tfsdk:"name"`
-	Username       types.String `tfsdk:"username"`
-	Uri            types.String `tfsdk:"uri"`
-	ResourceTypeId types.String `tfsdk:"resource_type_id"`
-	FolderParent   types.String `tfsdk:"folder_parent"`
-	Password       types.String `tfsdk:"password"`
+	ID           types.String `tfsdk:"id"`
+	Name         types.String `tfsdk:"name"`
+	Username     types.String `tfsdk:"username"`
+	Uri          types.String `tfsdk:"uri"`
+	ShareGroup   types.String `tfsdk:"share_group"`
+	FolderParent types.String `tfsdk:"folder_parent"`
+	Password     types.String `tfsdk:"password"`
 }
 
 // Configure adds the provider configured client to the resource.
@@ -77,8 +77,8 @@ func (r *passwordResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"uri": schema.StringAttribute{
 				Required: true,
 			},
-			"resource_type_id": schema.StringAttribute{
-				Computed: true,
+			"share_group": schema.StringAttribute{
+				Optional: true,
 			},
 			"folder_parent": schema.StringAttribute{
 				Optional: true,
@@ -108,27 +108,8 @@ func (r *passwordResource) Create(ctx context.Context, req resource.CreateReques
 
 	for _, resourceType := range resourceTypes {
 		if resourceType.Slug == "password-and-description" {
-			plan.ResourceTypeId = types.StringValue(resourceType.ID)
+			//		plan.ResourceTypeId = types.StringValue(resourceType.ID)
 		}
-	}
-
-	var pubKey, _, errKey = r.client.Client.GetPublicKey(ctx)
-	if errKey != nil {
-		resp.Diagnostics.AddError("Cannot get public key", "")
-		return
-	}
-
-	var enc, errEnc = r.client.Client.EncryptMessageWithPublicKey(pubKey, plan.Password.ValueString())
-
-	if errEnc != nil {
-		resp.Diagnostics.AddError("Cannot encrypt message", "")
-		return
-	}
-
-	var secrets = []api.Secret{
-		{
-			Data: enc,
-		},
 	}
 
 	folders, errFolder := r.client.Client.GetFolders(ctx, nil)
@@ -146,27 +127,36 @@ func (r *passwordResource) Create(ctx context.Context, req resource.CreateReques
 		}
 	}
 
-	var password = api.Resource{
-		FolderParentID: folderId,
-		Name:           plan.Name.ValueString(),
-		Username:       plan.Username.ValueString(),
-		URI:            plan.Uri.ValueString(),
-		ResourceTypeID: plan.ResourceTypeId.ValueString(),
-		Secrets:        secrets,
+	resourceId, err := helper.CreateResource(ctx, r.client.Client, folderId, plan.Name.ValueString(), plan.Username.ValueString(), plan.Uri.ValueString(), plan.Password.ValueString(), "")
+
+	var groupId string
+	if !plan.ShareGroup.IsUnknown() && !plan.FolderParent.IsNull() {
+		groups, _ := r.client.Client.GetGroups(ctx, nil)
+
+		for _, group := range groups {
+			if group.Name == plan.ShareGroup.ValueString() {
+				groupId = group.ID
+			}
+		}
+
+		if groupId != "" {
+			var shares = []helper.ShareOperation{
+				{
+					Type:  7,
+					ARO:   "Group",
+					AROID: groupId,
+				},
+			}
+
+			shareErr := helper.ShareResource(ctx, r.client.Client, resourceId, shares)
+
+			if shareErr != nil {
+				resp.Diagnostics.AddError("Cannot share resource", "")
+			}
+		}
 	}
 
-	cPassword, err := r.client.Client.CreateResource(ctx, password)
-
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error creating password",
-			"Could not create password, unexpected error: "+err.Error(),
-		)
-		return
-	}
-
-	plan.ID = types.StringValue(cPassword.ID)
-	plan.ResourceTypeId = types.StringValue(cPassword.ResourceTypeID)
+	plan.ID = types.StringValue(resourceId)
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, plan)
