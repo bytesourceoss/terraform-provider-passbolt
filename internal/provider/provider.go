@@ -2,6 +2,9 @@ package provider
 
 import (
 	"context"
+	"os"
+	"terraform-provider-passbolt/tools"
+
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -9,8 +12,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/passbolt/go-passbolt/api"
-	"os"
-	"terraform-provider-passbolt/tools"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -186,6 +187,7 @@ func (p *passboltProvider) Configure(ctx context.Context, req provider.Configure
 func (p *passboltProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewFoldersDataSource,
+		NewPasswordDataSource,
 	}
 }
 
