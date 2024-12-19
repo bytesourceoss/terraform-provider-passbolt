@@ -3,11 +3,12 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-passbolt/tools"
+
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/passbolt/go-passbolt/helper"
-	"terraform-provider-passbolt/tools"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -29,6 +30,7 @@ type passwordResource struct {
 type passwordModel struct {
 	ID           types.String `tfsdk:"id"`
 	Name         types.String `tfsdk:"name"`
+	Description  types.String `tfsdk:"description"`
 	Username     types.String `tfsdk:"username"`
 	Uri          types.String `tfsdk:"uri"`
 	ShareGroup   types.String `tfsdk:"share_group"`
@@ -70,6 +72,9 @@ func (r *passwordResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			},
 			"name": schema.StringAttribute{
 				Required: true,
+			},
+			"description": schema.StringAttribute{
+				Optional: true,
 			},
 			"username": schema.StringAttribute{
 				Required: true,
@@ -127,7 +132,20 @@ func (r *passwordResource) Create(ctx context.Context, req resource.CreateReques
 		}
 	}
 
-	resourceId, err := helper.CreateResource(ctx, r.client.Client, folderId, plan.Name.ValueString(), plan.Username.ValueString(), plan.Uri.ValueString(), plan.Password.ValueString(), "")
+	resourceId, err := helper.CreateResource(
+		ctx,
+		r.client.Client,
+		folderId,
+		plan.Name.ValueString(),
+		plan.Username.ValueString(),
+		plan.Uri.ValueString(),
+		plan.Password.ValueString(),
+		plan.Description.ValueString(),
+	)
+	if err != nil {
+		resp.Diagnostics.AddError("Cannot create resource", err.Error())
+		return
+	}
 
 	var groupId string
 	if !plan.ShareGroup.IsUnknown() && !plan.FolderParent.IsNull() {
