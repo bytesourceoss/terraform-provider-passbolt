@@ -105,18 +105,6 @@ func (r *passwordResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	resourceTypes, err := r.client.Client.GetResourceTypes(ctx, nil)
-	if err != nil {
-		resp.Diagnostics.AddError("Cannot get resource types", "")
-		return
-	}
-
-	for _, resourceType := range resourceTypes {
-		if resourceType.Slug == "password-and-description" {
-			//		plan.ResourceTypeId = types.StringValue(resourceType.ID)
-		}
-	}
-
 	folders, errFolder := r.client.Client.GetFolders(ctx, nil)
 	if errFolder != nil {
 		resp.Diagnostics.AddError("Cannot get folders", "")

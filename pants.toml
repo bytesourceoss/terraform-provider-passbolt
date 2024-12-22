@@ -1,0 +1,33 @@
+[GLOBAL]
+pants_version = "2.23.0"
+backend_packages = [
+  "pants.backend.experimental.go",
+  "pants.backend.experimental.go.lint.golangci_lint",
+  "pants.backend.shell",
+  "pants.backend.experimental.adhoc",
+]
+
+[anonymous-telemetry]
+enabled = false
+
+[cli.alias]
+all = "::"
+
+[source]
+root_patterns = [
+  "src",
+  "/",
+]
+
+[python]
+interpreter_constraints = [">=3.11"]
+
+[golang]
+minimum_expected_version = "1.21"
+go_search_paths =[ "<PATH>", "/usr/local/go/bin" ]
+
+[golangci-lint]
+version = "1.62.2"
+known_versions = [
+  "1.62.2|linux_x86_64|5101292b7925a6a14b49c5c3d845c5021399698ffd2f41bcfab8a111b5669939|11698754"
+]

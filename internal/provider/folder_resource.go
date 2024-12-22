@@ -3,12 +3,13 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-passbolt/tools"
+
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/passbolt/go-passbolt/api"
-	"terraform-provider-passbolt/tools"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -27,7 +28,7 @@ type folderResource struct {
 	client *tools.PassboltClient
 }
 
-// created, modified, created_by, modified_by, and folder_parent_id
+// created, modified, created_by, modified_by, and folder_parent_id.
 type foldersModelCreate struct {
 	ID           types.String `tfsdk:"id"`
 	Name         types.String `tfsdk:"name"`

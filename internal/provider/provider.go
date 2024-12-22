@@ -56,7 +56,8 @@ func (p *passboltProvider) Schema(_ context.Context, _ provider.SchemaRequest, r
 				Required: true,
 			},
 			"private_key": schema.StringAttribute{
-				Required: true,
+				Required:  true,
+				Sensitive: true,
 			},
 			"passphrase": schema.StringAttribute{
 				Required:  true,
