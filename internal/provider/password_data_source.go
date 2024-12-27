@@ -1,9 +1,10 @@
+// Copyright (c) HashiCorp, Inc.
+
 package provider
 
 import (
 	"context"
 	"fmt"
-	"terraform-provider-passbolt/tools"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -24,7 +25,7 @@ func NewPasswordDataSource() datasource.DataSource {
 
 // passwordDataSource is the data source implementation.
 type passwordDataSource struct {
-	client *tools.PassboltClient
+	client *PassboltClient
 }
 
 type passwordDataSourceModel struct {
@@ -43,7 +44,7 @@ func (d *passwordDataSource) Configure(_ context.Context, req datasource.Configu
 		return
 	}
 
-	client, ok := req.ProviderData.(*tools.PassboltClient)
+	client, ok := req.ProviderData.(*PassboltClient)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",
@@ -63,28 +64,36 @@ func (d *passwordDataSource) Metadata(_ context.Context, req datasource.Metadata
 // Schema defines the schema for the data source.
 func (d *passwordDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Gets a Passbolt secret for the provided Resource ID.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Required: true,
+				Description: "The Passbolt Resource ID of the secret (can be seen at the end of the URL of the secret in the web UI).",
+				Required:    true,
 			},
 			"name": schema.StringAttribute{
-				Computed: true,
+				Description: "The name of the secret.",
+				Computed:    true,
 			},
 			"description": schema.StringAttribute{
-				Computed: true,
+				Description: "The description of the secret. If not defined, it returns an empty string.",
+				Computed:    true,
 			},
 			"username": schema.StringAttribute{
-				Computed: true,
+				Description: "The username of the secret.",
+				Computed:    true,
 			},
 			"uri": schema.StringAttribute{
-				Computed: true,
+				Description: "The URI of the secret.",
+				Computed:    true,
 			},
 			"folder_parent_id": schema.StringAttribute{
-				Computed: true,
+				Description: "The ID of the parent folder, if any. Otherwise it's an empty string.",
+				Computed:    true,
 			},
 			"password": schema.StringAttribute{
-				Computed:  true,
-				Sensitive: true,
+				Description: "The decrypted password of the secret.",
+				Computed:    true,
+				Sensitive:   true,
 			},
 		},
 	}

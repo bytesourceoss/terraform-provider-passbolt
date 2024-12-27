@@ -1,9 +1,10 @@
+// Copyright (c) HashiCorp, Inc.
+
 package provider
 
 import (
 	"context"
 	"fmt"
-	"terraform-provider-passbolt/tools"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -25,7 +26,7 @@ func NewFolderResource() resource.Resource {
 
 // folderResource is the resource implementation.
 type folderResource struct {
-	client *tools.PassboltClient
+	client *PassboltClient
 }
 
 // created, modified, created_by, modified_by, and folder_parent_id.
@@ -42,7 +43,7 @@ func (r *folderResource) Configure(_ context.Context, req resource.ConfigureRequ
 		return
 	}
 
-	client, ok := req.ProviderData.(*tools.PassboltClient)
+	client, ok := req.ProviderData.(*PassboltClient)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",
@@ -63,20 +64,25 @@ func (r *folderResource) Metadata(_ context.Context, req resource.MetadataReques
 // Schema defines the schema for the resource.
 func (r *folderResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "A Passbolt Folder Resource.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Computed: true,
+				Description: "The folder Resource ID.",
+				Computed:    true,
 			},
 			"name": schema.StringAttribute{
-				Required: true,
+				Description: "The folder name",
+				Required:    true,
 			},
 			"personal": schema.BoolAttribute{
-				Computed: true,
-				Optional: true,
-				Default:  booldefault.StaticBool(false),
+				Description: "If the folder is a personal folder.",
+				Computed:    true,
+				Optional:    true,
+				Default:     booldefault.StaticBool(false),
 			},
 			"folder_parent": schema.StringAttribute{
-				Optional: true,
+				Description: "The optional parent folder in which to place the new folder.",
+				Optional:    true,
 			},
 		},
 	}

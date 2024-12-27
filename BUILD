@@ -20,3 +20,9 @@ run_shell_command(
     command="scripts/terraform_test.sh {chroot}",
     execution_dependencies=[":terraformrc"],
 )
+
+run_shell_command(
+    name="generate-docs",
+    command="scripts/generate_docs.sh {chroot}",
+    execution_dependencies=[":terraformrc"],
+)

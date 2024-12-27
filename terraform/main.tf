@@ -1,3 +1,5 @@
+# Copyright (c) HashiCorp, Inc.
+
 # Used for testing
 
 terraform {

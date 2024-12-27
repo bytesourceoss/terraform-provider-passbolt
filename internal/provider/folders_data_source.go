@@ -1,12 +1,14 @@
+// Copyright (c) HashiCorp, Inc.
+
 package provider
 
 import (
 	"context"
 	"fmt"
+
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"terraform-provider-passbolt/tools"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -22,7 +24,7 @@ func NewFoldersDataSource() datasource.DataSource {
 
 // coffeesDataSource is the data source implementation.
 type foldersDataSource struct {
-	client *tools.PassboltClient
+	client *PassboltClient
 }
 
 type foldersDataSourceModel struct {
@@ -46,7 +48,7 @@ func (d *foldersDataSource) Configure(_ context.Context, req datasource.Configur
 		return
 	}
 
-	client, ok := req.ProviderData.(*tools.PassboltClient)
+	client, ok := req.ProviderData.(*PassboltClient)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",

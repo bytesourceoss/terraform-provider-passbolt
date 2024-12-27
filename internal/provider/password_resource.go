@@ -1,9 +1,10 @@
+// Copyright (c) HashiCorp, Inc.
+
 package provider
 
 import (
 	"context"
 	"fmt"
-	"terraform-provider-passbolt/tools"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -24,18 +25,19 @@ func NewPasswordResource() resource.Resource {
 
 // folderResource is the resource implementation.
 type passwordResource struct {
-	client *tools.PassboltClient
+	client *PassboltClient
 }
 
 type passwordModel struct {
-	ID           types.String `tfsdk:"id"`
-	Name         types.String `tfsdk:"name"`
-	Description  types.String `tfsdk:"description"`
-	Username     types.String `tfsdk:"username"`
-	Uri          types.String `tfsdk:"uri"`
-	ShareGroup   types.String `tfsdk:"share_group"`
-	FolderParent types.String `tfsdk:"folder_parent"`
-	Password     types.String `tfsdk:"password"`
+	ID             types.String `tfsdk:"id"`
+	Name           types.String `tfsdk:"name"`
+	Description    types.String `tfsdk:"description"`
+	Username       types.String `tfsdk:"username"`
+	Uri            types.String `tfsdk:"uri"`
+	ShareGroup     types.String `tfsdk:"share_group"`
+	FolderParent   types.String `tfsdk:"folder_parent"`
+	FolderParentId types.String `tfsdk:"folder_parent_id"`
+	Password       types.String `tfsdk:"password"`
 }
 
 // Configure adds the provider configured client to the resource.
@@ -45,7 +47,7 @@ func (r *passwordResource) Configure(_ context.Context, req resource.ConfigureRe
 		return
 	}
 
-	client, ok := req.ProviderData.(*tools.PassboltClient)
+	client, ok := req.ProviderData.(*PassboltClient)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",
@@ -66,31 +68,45 @@ func (r *passwordResource) Metadata(_ context.Context, req resource.MetadataRequ
 // Schema defines the schema for the resource.
 func (r *passwordResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Defines a Passbolt Secret.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Computed: true,
+				Description: "The Resource ID of the secret.",
+				Computed:    true,
 			},
 			"name": schema.StringAttribute{
-				Required: true,
+				Description: "The name of the secret.",
+				Required:    true,
 			},
 			"description": schema.StringAttribute{
-				Optional: true,
+				Description: "The description of the secret",
+				Optional:    true,
 			},
 			"username": schema.StringAttribute{
-				Required: true,
+				Description: "The username of the secret.",
+				Required:    true,
 			},
 			"uri": schema.StringAttribute{
-				Required: true,
+				Description: "The URI of the secret.",
+				Required:    true,
 			},
 			"share_group": schema.StringAttribute{
-				Optional: true,
+				Description: "The Group Name to share the secret with.",
+				Optional:    true,
 			},
 			"folder_parent": schema.StringAttribute{
-				Optional: true,
+				Description: "The parent folder in which to place the secret.",
+				Optional:    true,
+			},
+			"folder_parent_id": schema.StringAttribute{
+				Description: "The ID of the parent folder, if `folder_parent` is specified.",
+				Optional:    true,
+				Computed:    true,
 			},
 			"password": schema.StringAttribute{
-				Required:  true,
-				Sensitive: true,
+				Description: "The secret password, stored as a sensative string in state.",
+				Required:    true,
+				Sensitive:   true,
 			},
 		},
 	}
@@ -107,15 +123,14 @@ func (r *passwordResource) Create(ctx context.Context, req resource.CreateReques
 
 	folders, errFolder := r.client.Client.GetFolders(ctx, nil)
 	if errFolder != nil {
-		resp.Diagnostics.AddError("Cannot get folders", "")
+		resp.Diagnostics.AddError("Cannot get folders", errFolder.Error())
 		return
 	}
 
-	var folderId string
 	if !plan.FolderParent.IsUnknown() && !plan.FolderParent.IsNull() {
 		for _, folder := range folders {
 			if folder.Name == plan.FolderParent.ValueString() {
-				folderId = folder.ID
+				plan.FolderParentId = types.StringValue(folder.ID)
 			}
 		}
 	}
@@ -123,7 +138,7 @@ func (r *passwordResource) Create(ctx context.Context, req resource.CreateReques
 	resourceId, err := helper.CreateResource(
 		ctx,
 		r.client.Client,
-		folderId,
+		plan.FolderParentId.ValueString(),
 		plan.Name.ValueString(),
 		plan.Username.ValueString(),
 		plan.Uri.ValueString(),
@@ -157,7 +172,7 @@ func (r *passwordResource) Create(ctx context.Context, req resource.CreateReques
 			shareErr := helper.ShareResource(ctx, r.client.Client, resourceId, shares)
 
 			if shareErr != nil {
-				resp.Diagnostics.AddError("Cannot share resource", "")
+				resp.Diagnostics.AddError("Cannot share resource", shareErr.Error())
 			}
 		}
 	}
@@ -173,11 +188,152 @@ func (r *passwordResource) Create(ctx context.Context, req resource.CreateReques
 }
 
 // Read refreshes the Terraform state with the latest data.
-func (r *passwordResource) Read(_ context.Context, _ resource.ReadRequest, _ *resource.ReadResponse) {
+func (r *passwordResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state passwordModel
+	diag := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diag...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	folderParentID, name, username, uri, password, description, err := helper.GetResource(r.client.Context, r.client.Client, state.ID.ValueString())
+	if err != nil {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+	if folderParentID != "" {
+		_, folderName, err := helper.GetFolder(r.client.Context, r.client.Client, folderParentID)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to get folder name for "+folderParentID, err.Error(),
+			)
+			return
+		}
+		state.FolderParent = types.StringValue(folderName)
+	}
+
+	if description != "" {
+		state.Description = types.StringValue(description)
+	}
+	state.Name = types.StringValue(name)
+	state.Username = types.StringValue(username)
+	state.Password = types.StringValue(password)
+	state.Uri = types.StringValue(uri)
+
+	diags := resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 // Update updates the resource and sets the updated Terraform state on success.
-func (r *passwordResource) Update(_ context.Context, _ resource.UpdateRequest, _ *resource.UpdateResponse) {
+func (r *passwordResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var state passwordModel
+	var plan passwordModel
+	stateDiags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(stateDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	planDiags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(planDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Update Resource
+	err := helper.UpdateResource(
+		r.client.Context,
+		r.client.Client,
+		state.ID.ValueString(),
+		state.Name.ValueString(),
+		state.Username.ValueString(),
+		state.Uri.ValueString(),
+		state.Password.ValueString(),
+		state.Description.ValueString(),
+	)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error updating resource "+state.ID.ValueString(), err.Error(),
+		)
+		return
+	}
+	if plan.FolderParent.ValueString() != state.FolderParent.ValueString() {
+		folders, err := r.client.Client.GetFolders(r.client.Context, nil)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to Read folders", err.Error(),
+			)
+			return
+		}
+		for _, folder := range folders {
+			if folder.Name == plan.FolderParent.ValueString() {
+				err = helper.MoveResource(r.client.Context, r.client.Client, state.ID.ValueString(), folder.ID)
+				if err != nil {
+					resp.Diagnostics.AddError(
+						"Error moving resource "+state.ID.ValueString()+" to folder "+folder.ID, err.Error(),
+					)
+					return
+				}
+			}
+		}
+	}
+	if plan.ShareGroup.ValueString() != state.ShareGroup.ValueString() {
+		permissedUsers := make([]string, 0)
+		permissedGroups := make([]string, 1)
+		groups, err := r.client.Client.GetGroups(r.client.Context, nil)
+		if err != nil {
+			resp.Diagnostics.AddError("Unable to Groups", err.Error())
+			return
+		}
+		for _, group := range groups {
+			if group.Name == plan.ShareGroup.ValueString() {
+				permissedGroups = append(permissedGroups, group.ID)
+			}
+		}
+		if len(permissedGroups) < 1 {
+			resp.Diagnostics.AddError(
+				"Unable to find Grou ID for "+plan.ShareGroup.ValueString(), "",
+			)
+			return
+		}
+		err = helper.ShareResourceWithUsersAndGroups(r.client.Context, r.client.Client, state.ID.ValueString(), permissedUsers, permissedGroups, 1)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to share "+state.ID.ValueString()+" with "+plan.ShareGroup.ValueString(), err.Error(),
+			)
+			return
+		}
+	}
+
+	// Read updated data
+	folderParentID, name, username, uri, password, description, err := helper.GetResource(r.client.Context, r.client.Client, state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to Read resource "+state.ID.ValueString(), err.Error(),
+		)
+		return
+	}
+
+	if description != "" {
+		state.Description = types.StringValue(description)
+	} else {
+		state.Description = types.StringNull()
+	}
+	state.Name = types.StringValue(name)
+	state.Username = types.StringValue(username)
+	state.Password = types.StringValue(password)
+	state.Uri = types.StringValue(uri)
+	state.FolderParent = types.StringValue(plan.FolderParent.ValueString())
+	state.FolderParentId = types.StringValue(folderParentID)
+	state.ShareGroup = plan.ShareGroup
+
+	setStateDiags := resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(setStateDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 // Delete deletes the resource and removes the Terraform state on success.
@@ -193,8 +349,7 @@ func (r *passwordResource) Delete(ctx context.Context, req resource.DeleteReques
 	err := r.client.Client.DeleteResource(ctx, state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error deleting password",
-			"Could not delete password, unexpected error: "+err.Error(),
+			"Error deleting password", err.Error(),
 		)
 		return
 	}

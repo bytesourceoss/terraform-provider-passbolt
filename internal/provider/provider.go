@@ -1,9 +1,10 @@
+// Copyright (c) HashiCorp, Inc.
+
 package provider
 
 import (
 	"context"
 	"os"
-	"terraform-provider-passbolt/tools"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -13,6 +14,21 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/passbolt/go-passbolt/api"
 )
+
+type PassboltClient struct {
+	Client     *api.Client
+	Url        string
+	PrivateKey string
+	Password   string
+	Context    context.Context
+}
+
+func Login(client *PassboltClient) {
+	err := client.Client.Login(client.Context)
+	if err != nil {
+		return
+	}
+}
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
@@ -53,15 +69,18 @@ func (p *passboltProvider) Schema(_ context.Context, _ provider.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"base_url": schema.StringAttribute{
-				Required: true,
+				Description: "Your Passbolt URL (e.g. `https://example.passbolt.com`). Can also be provided via the `PASSBOLT_URL` environment variable.",
+				Required:    true,
 			},
 			"private_key": schema.StringAttribute{
-				Required:  true,
-				Sensitive: true,
+				Description: "Your Passbolt PGP Private Key. Can also be provided via the `PASSBOLT_KEY` environment variable.",
+				Required:    true,
+				Sensitive:   true,
 			},
 			"passphrase": schema.StringAttribute{
-				Required:  true,
-				Sensitive: true,
+				Description: "Your Passbolt passphrase associated with your private key. Can also be provided via the `PASSBOLT_PASS` environment variable.",
+				Required:    true,
+				Sensitive:   true,
 			},
 		},
 	}
@@ -167,7 +186,7 @@ func (p *passboltProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	passboltClient := tools.PassboltClient{
+	passboltClient := PassboltClient{
 		Client:     client,
 		Url:        url,
 		Context:    context.TODO(),
@@ -178,7 +197,7 @@ func (p *passboltProvider) Configure(ctx context.Context, req provider.Configure
 	// Make the client available during DataSource and Resource
 	// type Configure methods.
 
-	tools.Login(&passboltClient)
+	Login(&passboltClient)
 
 	resp.DataSourceData = &passboltClient
 	resp.ResourceData = &passboltClient
