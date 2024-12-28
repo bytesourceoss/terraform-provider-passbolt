@@ -1,5 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-
 # Basic Passbolt Folder
 resource "passbolt_folder" "basic" {
   name = "My Folder"

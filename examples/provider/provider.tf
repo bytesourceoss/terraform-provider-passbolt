@@ -1,5 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-
 # Basic configuration
 provider "passbolt" {
   base_url    = "https://example.passbolt.com"    # PASSBOLT_URL

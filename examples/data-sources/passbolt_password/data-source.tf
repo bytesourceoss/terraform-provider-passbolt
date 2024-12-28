@@ -1,5 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-
 # Gets all folders
 data "passbolt_password" "my_secret" {
   id = "00000000-1111-2222-3333-444444444444"

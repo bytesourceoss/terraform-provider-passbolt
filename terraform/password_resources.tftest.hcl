@@ -1,5 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-
 mock_provider "passbolt" {}
 
 run "minimum_password_resource" {

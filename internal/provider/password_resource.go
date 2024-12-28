@@ -1,5 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-
 package provider
 
 import (
@@ -281,7 +279,7 @@ func (r *passwordResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 	if plan.ShareGroup.ValueString() != state.ShareGroup.ValueString() {
 		permissedUsers := make([]string, 0)
-		permissedGroups := make([]string, 1)
+		permissedGroups := make([]string, 0)
 		groups, err := r.client.Client.GetGroups(r.client.Context, nil)
 		if err != nil {
 			resp.Diagnostics.AddError("Unable to Groups", err.Error())

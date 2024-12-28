@@ -13,8 +13,6 @@ description: |-
 ## Example Usage
 
 ```terraform
-# Copyright (c) HashiCorp, Inc.
-
 # Gets all folders
 data "passbolt_folders" "all" {}
 

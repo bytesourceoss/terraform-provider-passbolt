@@ -13,8 +13,6 @@ Defines a Passbolt Secret.
 ## Example Usage
 
 ```terraform
-# Copyright (c) HashiCorp, Inc.
-
 # Basic Configuration
 resource "random_password" "basic" {
   length = 16

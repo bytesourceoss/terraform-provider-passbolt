@@ -1,5 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-
 package provider
 
 import (
@@ -23,12 +21,12 @@ type PassboltClient struct {
 	Context    context.Context
 }
 
-func Login(client *PassboltClient) {
-	err := client.Client.Login(client.Context)
-	if err != nil {
-		return
-	}
-}
+// func Login(client *PassboltClient) {
+// 	err := client.Client.Login(client.Context)
+// 	if err != nil {
+// 		return
+// 	}
+// }
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
@@ -44,7 +42,7 @@ func New(version string) func() provider.Provider {
 	}
 }
 
-// hashicupsProvider is the provider implementation.
+// passboltProvider is the provider implementation.
 type passboltProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
@@ -52,7 +50,7 @@ type passboltProvider struct {
 	version string
 }
 
-type hashicupsProviderModel struct {
+type passboltProviderModel struct {
 	URL  types.String `tfsdk:"base_url"`
 	KEY  types.String `tfsdk:"private_key"`
 	PASS types.String `tfsdk:"passphrase"`
@@ -70,16 +68,16 @@ func (p *passboltProvider) Schema(_ context.Context, _ provider.SchemaRequest, r
 		Attributes: map[string]schema.Attribute{
 			"base_url": schema.StringAttribute{
 				Description: "Your Passbolt URL (e.g. `https://example.passbolt.com`). Can also be provided via the `PASSBOLT_URL` environment variable.",
-				Required:    true,
+				Optional:    true,
 			},
 			"private_key": schema.StringAttribute{
 				Description: "Your Passbolt PGP Private Key. Can also be provided via the `PASSBOLT_KEY` environment variable.",
-				Required:    true,
+				Optional:    true,
 				Sensitive:   true,
 			},
 			"passphrase": schema.StringAttribute{
 				Description: "Your Passbolt passphrase associated with your private key. Can also be provided via the `PASSBOLT_PASS` environment variable.",
-				Required:    true,
+				Optional:    true,
 				Sensitive:   true,
 			},
 		},
@@ -88,47 +86,17 @@ func (p *passboltProvider) Schema(_ context.Context, _ provider.SchemaRequest, r
 
 func (p *passboltProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	// Retrieve provider data from configuration
-	var config hashicupsProviderModel
-	diags := req.Config.Get(ctx, &config)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	// If practitioner provided a configuration value for any of the
-	// attributes, it must be a known value.
-
-	if config.URL.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("url"),
-			"Unknown URL",
-			"",
-		)
-	}
-
-	if config.KEY.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("private_key"),
-			"Unknown private key",
-			"",
-		)
-	}
-
-	if config.PASS.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("password"),
-			"Unknown password",
-			"",
-		)
-	}
-
-	if resp.Diagnostics.HasError() {
-		return
+	var config passboltProviderModel
+	if p.version != "test" {
+		diags := req.Config.Get(ctx, &config)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
 	}
 
 	// Default values to environment variables, but override
 	// with Terraform configuration value if set.
-
 	url := os.Getenv("PASSBOLT_URL")
 	key := os.Getenv("PASSBOLT_KEY")
 	pass := os.Getenv("PASSBOLT_PASS")
@@ -147,13 +115,13 @@ func (p *passboltProvider) Configure(ctx context.Context, req provider.Configure
 
 	// If any of the expected configurations are missing, return
 	// errors with provider-specific guidance.
-
 	if url == "" {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("url"),
 			"Missing url",
 			"",
 		)
+		return
 	}
 
 	if key == "" {
@@ -162,6 +130,7 @@ func (p *passboltProvider) Configure(ctx context.Context, req provider.Configure
 			"Missing private key",
 			"",
 		)
+		return
 	}
 
 	if pass == "" {
@@ -170,14 +139,10 @@ func (p *passboltProvider) Configure(ctx context.Context, req provider.Configure
 			"Missing password",
 			"",
 		)
-	}
-
-	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	client, err := api.NewClient(nil, "", url, key, pass)
-
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to connect to passbolt",
@@ -193,12 +158,20 @@ func (p *passboltProvider) Configure(ctx context.Context, req provider.Configure
 		Password:   pass,
 		PrivateKey: key,
 	}
+	if p.version != "test" {
+		err = passboltClient.Client.Login(passboltClient.Context)
+		if err != nil {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("url"),
+				"Unable to log in to the configured provider url.",
+				err.Error(),
+			)
+			return
+		}
+	}
 
 	// Make the client available during DataSource and Resource
 	// type Configure methods.
-
-	Login(&passboltClient)
-
 	resp.DataSourceData = &passboltClient
 	resp.ResourceData = &passboltClient
 }

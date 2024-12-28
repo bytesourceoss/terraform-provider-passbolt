@@ -31,3 +31,8 @@ version = "1.62.2"
 known_versions = [
   "1.62.2|linux_x86_64|5101292b7925a6a14b49c5c3d845c5021399698ffd2f41bcfab8a111b5669939|11698754"
 ]
+
+[go-test]
+args = [
+    "-v"
+]

@@ -13,8 +13,6 @@ A Passbolt Folder Resource.
 ## Example Usage
 
 ```terraform
-# Copyright (c) HashiCorp, Inc.
-
 # Basic Passbolt Folder
 resource "passbolt_folder" "basic" {
   name = "My Folder"

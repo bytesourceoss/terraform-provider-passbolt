@@ -1,6 +1,4 @@
 #!/bin/bash
-# Copyright (c) HashiCorp, Inc.
-
 
 main() {
     pantsSandbox=$1
