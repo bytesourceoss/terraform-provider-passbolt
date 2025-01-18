@@ -22,7 +22,6 @@ resource "passbolt_password" "basic" {
   name     = "Basic Password Example"
   username = "myUser"
   password = random_password.basic.result
-  uri      = "https://example.com"
 }
 
 # Full Password Cofiguration
@@ -44,7 +43,6 @@ resource "passbolt_password" "full" {
 
 - `name` (String) The name of the secret.
 - `password` (String, Sensitive) The secret password, stored as a sensative string in state.
-- `uri` (String) The URI of the secret.
 - `username` (String) The username of the secret.
 
 ### Optional
@@ -53,6 +51,7 @@ resource "passbolt_password" "full" {
 - `folder_parent` (String) The parent folder in which to place the secret.
 - `folder_parent_id` (String) The ID of the parent folder, if `folder_parent` is specified.
 - `share_group` (String) The Group Name to share the secret with.
+- `uri` (String) The URI of the secret.
 
 ### Read-Only
 

@@ -7,7 +7,6 @@ resource "passbolt_password" "basic" {
   name     = "Basic Password Example"
   username = "myUser"
   password = random_password.basic.result
-  uri      = "https://example.com"
 }
 
 # Full Password Cofiguration

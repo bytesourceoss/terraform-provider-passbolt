@@ -6,7 +6,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/passbolt/go-passbolt/helper"
 )
 
@@ -86,7 +88,9 @@ func (r *passwordResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			},
 			"uri": schema.StringAttribute{
 				Description: "The URI of the secret.",
-				Required:    true,
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
 			},
 			"share_group": schema.StringAttribute{
 				Description: "The Group Name to share the secret with.",
@@ -240,6 +244,14 @@ func (r *passwordResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
+	ctx = tflog.SetField(ctx, "resourceId", state.ID.ValueString())
+	ctx = tflog.SetField(ctx, "Name", plan.Name.ValueString())
+	ctx = tflog.SetField(ctx, "Username", plan.Username.ValueString())
+	ctx = tflog.SetField(ctx, "Uri", plan.Uri.ValueString())
+	ctx = tflog.SetField(ctx, "Password", plan.Password.ValueString())
+	ctx = tflog.SetField(ctx, "Description", plan.Description.ValueString())
+	tflog.Debug(ctx, "passbolt.UpdateResource")
+
 	// Update Resource
 	err := helper.UpdateResource(
 		r.client.Context,
@@ -259,6 +271,8 @@ func (r *passwordResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 	if plan.FolderParent.ValueString() != state.FolderParent.ValueString() {
 		folders, err := r.client.Client.GetFolders(r.client.Context, nil)
+		ctx = tflog.SetField(ctx, "folders", folders)
+		tflog.Debug(ctx, "passbolt.GetFolders")
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Unable to Read folders", err.Error(),
@@ -268,12 +282,17 @@ func (r *passwordResource) Update(ctx context.Context, req resource.UpdateReques
 		for _, folder := range folders {
 			if folder.Name == plan.FolderParent.ValueString() {
 				err = helper.MoveResource(r.client.Context, r.client.Client, state.ID.ValueString(), folder.ID)
+				ctx = tflog.SetField(ctx, "resourceId", state.ID.ValueString())
+				ctx = tflog.SetField(ctx, "oldFolderId", state.FolderParentId)
+				ctx = tflog.SetField(ctx, "newFolderId", folder.ID)
+				tflog.Debug(ctx, "passbolt.MoveResource")
 				if err != nil {
 					resp.Diagnostics.AddError(
 						"Error moving resource "+state.ID.ValueString()+" to folder "+folder.ID, err.Error(),
 					)
 					return
 				}
+				state.FolderParentId = types.StringValue(folder.ID)
 			}
 		}
 	}
@@ -281,6 +300,8 @@ func (r *passwordResource) Update(ctx context.Context, req resource.UpdateReques
 		permissedUsers := make([]string, 0)
 		permissedGroups := make([]string, 0)
 		groups, err := r.client.Client.GetGroups(r.client.Context, nil)
+		ctx = tflog.SetField(ctx, "groups", groups)
+		tflog.Debug(ctx, "passbolt.GetGroups")
 		if err != nil {
 			resp.Diagnostics.AddError("Unable to Groups", err.Error())
 			return
@@ -297,6 +318,10 @@ func (r *passwordResource) Update(ctx context.Context, req resource.UpdateReques
 			return
 		}
 		err = helper.ShareResourceWithUsersAndGroups(r.client.Context, r.client.Client, state.ID.ValueString(), permissedUsers, permissedGroups, 1)
+		ctx = tflog.SetField(ctx, "resourceId", state.ID.ValueString())
+		ctx = tflog.SetField(ctx, "permissedUsers", permissedUsers)
+		ctx = tflog.SetField(ctx, "permissedGroups", permissedGroups)
+		tflog.Debug(ctx, "passbolt.ShareResourceWithUsersAndGroups")
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Unable to share "+state.ID.ValueString()+" with "+plan.ShareGroup.ValueString(), err.Error(),
@@ -305,26 +330,16 @@ func (r *passwordResource) Update(ctx context.Context, req resource.UpdateReques
 		}
 	}
 
-	// Read updated data
-	folderParentID, name, username, uri, password, description, err := helper.GetResource(r.client.Context, r.client.Client, state.ID.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Read resource "+state.ID.ValueString(), err.Error(),
-		)
-		return
-	}
-
-	if description != "" {
-		state.Description = types.StringValue(description)
+	if plan.Description.ValueString() != "" {
+		state.Description = types.StringValue(plan.Description.ValueString())
 	} else {
 		state.Description = types.StringNull()
 	}
-	state.Name = types.StringValue(name)
-	state.Username = types.StringValue(username)
-	state.Password = types.StringValue(password)
-	state.Uri = types.StringValue(uri)
-	state.FolderParent = types.StringValue(plan.FolderParent.ValueString())
-	state.FolderParentId = types.StringValue(folderParentID)
+	state.Name = plan.Name
+	state.Username = plan.Username
+	state.Password = plan.Password
+	state.Uri = plan.Uri
+	state.FolderParent = plan.FolderParent
 	state.ShareGroup = plan.ShareGroup
 
 	setStateDiags := resp.State.Set(ctx, &state)
