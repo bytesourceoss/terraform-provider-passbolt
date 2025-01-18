@@ -21,13 +21,6 @@ type PassboltClient struct {
 	Context    context.Context
 }
 
-// func Login(client *PassboltClient) {
-// 	err := client.Client.Login(client.Context)
-// 	if err != nil {
-// 		return
-// 	}
-// }
-
 // Ensure the implementation satisfies the expected interfaces.
 var (
 	_ provider.Provider = &passboltProvider{}

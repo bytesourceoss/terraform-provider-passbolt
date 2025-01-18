@@ -245,11 +245,11 @@ func (r *passwordResource) Update(ctx context.Context, req resource.UpdateReques
 		r.client.Context,
 		r.client.Client,
 		state.ID.ValueString(),
-		state.Name.ValueString(),
-		state.Username.ValueString(),
-		state.Uri.ValueString(),
-		state.Password.ValueString(),
-		state.Description.ValueString(),
+		plan.Name.ValueString(),
+		plan.Username.ValueString(),
+		plan.Uri.ValueString(),
+		plan.Password.ValueString(),
+		plan.Description.ValueString(),
 	)
 	if err != nil {
 		resp.Diagnostics.AddError(
