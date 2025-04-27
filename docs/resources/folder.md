@@ -35,7 +35,6 @@ resource "passbolt_folder" "full" {
 
 ### Optional
 
-- `folder_parent` (String) The optional parent folder in which to place the new folder.
 - `personal` (Boolean) If the folder is a personal folder.
 
 ### Read-Only
