@@ -1,8 +1,8 @@
 terraform {
   required_providers {
     passbolt = {
-      source  = "localhost/test/passbolt"
-      version = "~> 1.0"
+      source  = "bytesourceoss/passbolt"
+      version = "1.0.0"
     }
   }
 }
@@ -25,7 +25,6 @@ provider "passbolt" {
 
 resource "passbolt_folder" "folder_private" {
   name = "folder-private"
-  personal = true
 }
 resource "passbolt_folder" "folder_shared" {
   name = "folder-shared"

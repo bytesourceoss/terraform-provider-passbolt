@@ -11,7 +11,7 @@ Go path can be looked up by: `echo $GOPATH`
 provider_installation {
 
   dev_overrides {
-    "localhost/test/passbolt" = "<<INSERT_GO_PATH_HERE>>/bin/"
+    "bytesourceoss/passbolt" = "<<INSERT_GO_PATH_HERE>>/bin/"
   }
 
   direct {}

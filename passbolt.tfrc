@@ -1,5 +1,5 @@
 provider_installation {
   dev_overrides {
-    "localhost/test/passbolt" = "<GOPATH>/bin/"
+    "bytesourceoss/passbolt" = "<GOPATH>/bin/"
   }
 }
