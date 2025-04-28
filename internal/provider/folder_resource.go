@@ -27,12 +27,11 @@ type folderResource struct {
 	client *PassboltClient
 }
 
-// created, modified, created_by, modified_by, and folder_parent_id.
+// created, modified
 type foldersModelCreate struct {
-	ID           types.String `tfsdk:"id"`
-	Name         types.String `tfsdk:"name"`
-	FolderParent types.String `tfsdk:"folder_parent"`
-	Personal     types.Bool   `tfsdk:"personal"`
+	ID       types.String `tfsdk:"id"`
+	Name     types.String `tfsdk:"name"`
+	Personal types.Bool   `tfsdk:"personal"`
 }
 
 // Configure adds the provider configured client to the resource.
@@ -78,10 +77,6 @@ func (r *folderResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Optional:    true,
 				Default:     booldefault.StaticBool(false),
 			},
-			"folder_parent": schema.StringAttribute{
-				Description: "The optional parent folder in which to place the new folder.",
-				Optional:    true,
-			},
 		},
 	}
 }
@@ -102,27 +97,35 @@ func (r *folderResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	var folderId string
+	/* TODO: parent folder id on creation does not work, check if we need a move into parent folder feature
+	var parentFolderID string
 	if !plan.FolderParent.IsUnknown() && !plan.FolderParent.IsNull() {
 		for _, folder := range folders {
 			if folder.Name == plan.FolderParent.ValueString() {
-				folderId = folder.ID
+				parentFolderID = folder.ID
 			}
 		}
 	}
+	*/
 
 	// Generate API request body from plan
 	var folder = api.Folder{
-		FolderParentID: folderId,
-		Name:           plan.Name.ValueString(),
+		Name:     plan.Name.ValueString(),
+		Personal: plan.Personal.ValueBool(),
 	}
 
-	// Create new order
+	for _, el := range folders {
+		if el.Name == folder.Name && el.Personal == folder.Personal {
+			// folder already created
+			return
+		}
+	}
+
 	cFolder, errCreate := r.client.Client.CreateFolder(r.client.Context, folder)
 	if errCreate != nil {
 		resp.Diagnostics.AddError(
-			"Error creating folder",
-			"Could not create folder, unexpected error: "+errCreate.Error(),
+			fmt.Sprintf("failed to create folder of name: %s", folder.Name),
+			errCreate.Error(),
 		)
 		return
 	}

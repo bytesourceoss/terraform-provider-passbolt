@@ -78,19 +78,19 @@ func (d *shareDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 							Required: true,
 						},
 						"role_id": schema.StringAttribute{
-							Required: false,
+							Optional: true,
 						},
 						"name": schema.StringAttribute{
-							Required: false,
+							Optional: true,
 						},
 						"username": schema.StringAttribute{
-							Required: false,
+							Optional: true,
 						},
 						"active": schema.BoolAttribute{
-							Required: false,
+							Optional: true,
 						},
 						"deleted": schema.BoolAttribute{
-							Required: false,
+							Optional: true,
 						},
 						"created": schema.StringAttribute{
 							Required: true,
@@ -102,10 +102,10 @@ func (d *shareDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 							Required: true,
 						},
 						"modified_by": schema.StringAttribute{
-							Required: false,
+							Optional: true,
 						},
 						"folder_parent_id": schema.StringAttribute{
-							Required: false,
+							Optional: true,
 						},
 					},
 				},

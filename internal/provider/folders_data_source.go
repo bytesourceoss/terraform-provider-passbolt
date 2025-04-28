@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -25,7 +26,11 @@ type foldersDataSource struct {
 	client *PassboltClient
 }
 
+type foldersDataSourceBlockFilterModel struct {
+	Name types.String `tfsdk:"name"`
+}
 type foldersDataSourceModel struct {
+	Name    types.String   `tfsdk:"name"`
 	Folders []foldersModel `tfsdk:"folders"`
 }
 
@@ -67,6 +72,10 @@ func (d *foldersDataSource) Metadata(_ context.Context, req datasource.MetadataR
 func (d *foldersDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
+			"name": schema.StringAttribute{
+				Description: "filter folder list response by name",
+				Optional:    true,
+			},
 			"folders": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
@@ -103,7 +112,7 @@ func (d *foldersDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 }
 
 // Read refreshes the Terraform state with the latest data.
-func (d *foldersDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
+func (d *foldersDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state foldersDataSourceModel
 
 	folders, err := d.client.Client.GetFolders(d.client.Context, nil)
@@ -113,6 +122,14 @@ func (d *foldersDataSource) Read(ctx context.Context, _ datasource.ReadRequest, 
 		)
 		return
 	}
+
+	var reqModel foldersDataSourceModel
+	diags := req.Config.Get(ctx, &reqModel)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	filterValue := reqModel.Name.ValueString()
 
 	// Map response body to model
 	for _, folder := range folders {
@@ -126,11 +143,19 @@ func (d *foldersDataSource) Read(ctx context.Context, _ datasource.ReadRequest, 
 			FolderParentId: types.StringValue(folder.FolderParentID),
 			Personal:       types.BoolValue(folder.Personal),
 		}
-		state.Folders = append(state.Folders, folderState)
+
+		if filterValue != "" {
+			match, _ := regexp.MatchString(filterValue, folderState.Name.ValueString())
+			if match {
+				state.Folders = append(state.Folders, folderState)
+			}
+		} else {
+			state.Folders = append(state.Folders, folderState)
+		}
 	}
 
 	// Set state
-	diags := resp.State.Set(ctx, &state)
+	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
