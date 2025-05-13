@@ -16,6 +16,10 @@ jobs:
         id: import_gpg
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.1
       - name: Test, Lint, & Build # Everything should pass normally before building with GoReleaser
         run: |
           curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
