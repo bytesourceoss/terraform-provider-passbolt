@@ -27,23 +27,21 @@ output "share" {
 
 ### Read-Only
 
-- `share` (Attributes List) (see [below for nested schema](#nestedatt--share))
+- `id` (String) The ID of this resource.
+- `shares` (Attributes List) (see [below for nested schema](#nestedatt--shares))
 
-<a id="nestedatt--share"></a>
-### Nested Schema for `share`
+<a id="nestedatt--shares"></a>
+### Nested Schema for `shares`
 
-Required:
-
-- `created` (String)
-- `created_by` (String)
-- `id` (String)
-- `modified` (String)
-
-Optional:
+Read-Only:
 
 - `active` (Boolean)
+- `created` (String)
+- `created_by` (String)
 - `deleted` (Boolean)
 - `folder_parent_id` (String)
+- `id` (String)
+- `modified` (String)
 - `modified_by` (String)
 - `name` (String)
 - `role_id` (String)

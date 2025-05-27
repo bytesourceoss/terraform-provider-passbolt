@@ -20,6 +20,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.23.0
+          passphrase: ${{ secrets.PASSPHRASE }}
       - name: Test, Lint, & Build # Everything should pass normally before building with GoReleaser
         run: |
           curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash

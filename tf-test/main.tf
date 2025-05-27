@@ -36,3 +36,11 @@ resource "passbolt_share" "share-folder-with-group-open" {
   share_target_value = "group-open"
   share_permission   = "1"
 }
+
+
+data "passbolt_share" "all" {}
+
+output "share" {
+  # `value` will be a list of all available share
+  value = data.passbolt_share.all
+}

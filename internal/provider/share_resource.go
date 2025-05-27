@@ -132,7 +132,9 @@ func (r *shareResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		resp.Diagnostics.AddError(fmt.Sprintf("failed to lookup permission, folder: %s, share-target: %s, share-value: %s", data.Name.ValueString(), data.ShareTargetType.ValueString(), data.ShareTargetValue.ValueString()), err.Error())
 		return
 	}
-	data.SharePermission = types.StringValue(fmt.Sprintf("%d", pem.Type))
+	if pem != nil {
+		data.SharePermission = types.StringValue(fmt.Sprintf("%d", pem.Type))
+	}
 
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)
