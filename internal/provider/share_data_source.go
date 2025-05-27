@@ -27,6 +27,7 @@ type shareDataSource struct {
 }
 
 type shareDataSourceModel struct {
+	ID     types.String `tfsdk:"id"`
 	Shares []shareModel `tfsdk:"shares"`
 }
 
@@ -70,42 +71,45 @@ func (d *shareDataSource) Metadata(_ context.Context, req datasource.MetadataReq
 func (d *shareDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"share": schema.ListNestedAttribute{
+			"id": schema.StringAttribute{
+				Optional: true,
+			},
+			"shares": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
-							Required: true,
+							Computed: true,
 						},
 						"role_id": schema.StringAttribute{
-							Optional: true,
+							Computed: true,
 						},
 						"name": schema.StringAttribute{
-							Optional: true,
+							Computed: true,
 						},
 						"username": schema.StringAttribute{
-							Optional: true,
+							Computed: true,
 						},
 						"active": schema.BoolAttribute{
-							Optional: true,
+							Computed: true,
 						},
 						"deleted": schema.BoolAttribute{
-							Optional: true,
+							Computed: true,
 						},
 						"created": schema.StringAttribute{
-							Required: true,
+							Computed: true,
 						},
 						"modified": schema.StringAttribute{
-							Required: true,
+							Computed: true,
 						},
 						"created_by": schema.StringAttribute{
-							Required: true,
+							Computed: true,
 						},
 						"modified_by": schema.StringAttribute{
-							Optional: true,
+							Computed: true,
 						},
 						"folder_parent_id": schema.StringAttribute{
-							Optional: true,
+							Computed: true,
 						},
 					},
 				},
@@ -117,11 +121,14 @@ func (d *shareDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 // Read refreshes the Terraform state with the latest data.
 func (d *shareDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state shareDataSourceModel
-	var data shareModel
-	diag := req.Config.Get(ctx, &data)
-	resp.Diagnostics.Append(diag...)
 
-	shares, err := d.client.Client.SearchAROs(d.client.Context, api.SearchAROsOptions{FilterSearch: data.ID.String()})
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
+
+	var opts api.SearchAROsOptions
+	if state.ID.String() != "" {
+		opts = api.SearchAROsOptions{FilterSearch: state.ID.String()}
+	}
+	shares, err := d.client.Client.SearchAROs(d.client.Context, opts)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read shares", "",
@@ -130,6 +137,7 @@ func (d *shareDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	}
 
 	// Map response body to model
+	state.Shares = make([]shareModel, 0)
 	for _, share := range shares {
 		shareState := shareModel{
 			ID:         types.StringValue(share.User.ID),
