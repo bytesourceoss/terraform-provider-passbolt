@@ -8,8 +8,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	//"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	//"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/passbolt/go-passbolt/api"
 )
@@ -76,10 +74,9 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "The user role.",
 				Computed:    true,
 				Optional:    true,
-				//Default:     stringdefault.StaticString(""),
 			},
 			"username": schema.StringAttribute{
-				Description: "The user name. This needs to be a valid email.",
+				Description: "The user name. This needs to be a valid email. User will be replaced upon username change.",
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -151,7 +148,7 @@ func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	user, err := r.client.Client.GetUser(r.client.Context, state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			fmt.Sprintf("Cannot get user: %s", user.Username),
+			fmt.Sprintf("Cannot get user: %s", state.ID.ValueString()),
 			err.Error(),
 		)
 		return
