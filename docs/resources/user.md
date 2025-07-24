@@ -19,7 +19,7 @@ A Passbolt User Resource.
 
 - `firstname` (String) The first name of the user.
 - `lastname` (String) The last name of the user.
-- `username` (String) The user name. This needs to be a valid email.
+- `username` (String) The user name. This needs to be a valid email. User will be replaced upon username change.
 
 ### Optional
 
