@@ -186,5 +186,6 @@ func (p *passboltProvider) Resources(_ context.Context) []func() resource.Resour
 		NewPasswordResource,
 		NewShareResource,
 		NewUserResource,
+		NewGroupResource,
 	}
 }
