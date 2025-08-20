@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/passbolt/go-passbolt/api"
 )
@@ -29,9 +30,10 @@ type folderResource struct {
 
 // created, modified
 type foldersModelCreate struct {
-	ID       types.String `tfsdk:"id"`
-	Name     types.String `tfsdk:"name"`
-	Personal types.Bool   `tfsdk:"personal"`
+	ID             types.String `tfsdk:"id"`
+	Name           types.String `tfsdk:"name"`
+	Personal       types.Bool   `tfsdk:"personal"`
+	FolderParentId types.String `tfsdk:"folder_parent_id"`
 }
 
 // Configure adds the provider configured client to the resource.
@@ -71,11 +73,17 @@ func (r *folderResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Description: "The folder name",
 				Required:    true,
 			},
+			"folder_parent_id": schema.StringAttribute{
+				Description: "The ID of the parent folder",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
 			"personal": schema.BoolAttribute{
 				Description: "If the folder is a personal folder.",
 				Computed:    true,
 				Optional:    true,
-				Default:     booldefault.StaticBool(false),
+				Default:     booldefault.StaticBool(true),
 			},
 		},
 	}
@@ -97,21 +105,11 @@ func (r *folderResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	/* TODO: parent folder id on creation does not work, check if we need a move into parent folder feature
-	var parentFolderID string
-	if !plan.FolderParent.IsUnknown() && !plan.FolderParent.IsNull() {
-		for _, folder := range folders {
-			if folder.Name == plan.FolderParent.ValueString() {
-				parentFolderID = folder.ID
-			}
-		}
-	}
-	*/
-
 	// Generate API request body from plan
 	var folder = api.Folder{
-		Name:     plan.Name.ValueString(),
-		Personal: plan.Personal.ValueBool(),
+		Name:           plan.Name.ValueString(),
+		Personal:       plan.Personal.ValueBool(),
+		FolderParentID: plan.FolderParentId.ValueString(),
 	}
 
 	for _, el := range folders {
@@ -142,13 +140,114 @@ func (r *folderResource) Create(ctx context.Context, req resource.CreateRequest,
 }
 
 // Read refreshes the Terraform state with the latest data.
-func (r *folderResource) Read(_ context.Context, _ resource.ReadRequest, _ *resource.ReadResponse) {
+func (r *folderResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	// Retrieve values from state
+	var state foldersModelCreate
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	folder, err := r.client.Client.GetFolder(r.client.Context, state.ID.ValueString(), nil)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			fmt.Sprintf("Cannot get folder: %s", folder.Name),
+			err.Error(),
+		)
+		return
+	}
+
+	state.ID = types.StringValue(folder.ID)
+	state.Name = types.StringValue(folder.Name)
+	state.Personal = types.BoolValue(folder.Personal)
+	state.FolderParentId = types.StringValue(folder.FolderParentID)
+
+	// Set state to fully populated data
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 // Update updates the resource and sets the updated Terraform state on success.
-func (r *folderResource) Update(_ context.Context, _ resource.UpdateRequest, _ *resource.UpdateResponse) {
+func (r *folderResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	// Retrieve values from plan
+	var plan foldersModelCreate
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Generate API request body from plan
+	var folder = api.Folder{
+		Name:           plan.Name.ValueString(),
+		Personal:       plan.Personal.ValueBool(),
+		FolderParentID: plan.FolderParentId.ValueString(),
+	}
+
+	var state foldersModelCreate
+	req.State.Get(ctx, &state)
+	cFolder, err := r.client.Client.UpdateFolder(r.client.Context, state.ID.ValueString(), folder)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			fmt.Sprintf("failed to update folder of name: %s", folder.Name),
+			err.Error(),
+		)
+		return
+	}
+
+	// In order to re-parent a folder we need to perform a move operation.
+	// This unfortunately can't be done via the UpdateFolder call.
+	if folder.FolderParentID != cFolder.FolderParentID {
+		err := r.client.Client.MoveFolder(r.client.Context, cFolder.ID, folder.FolderParentID)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				fmt.Sprintf("failed to move folder of name: %s", folder.Name),
+				err.Error(),
+			)
+			return
+		}
+	}
+
+	// Map response body to schema and populate Computed attribute values
+	plan.ID = types.StringValue(cFolder.ID)
+	plan.Name = types.StringValue(cFolder.Name)
+	plan.Personal = types.BoolValue(cFolder.Personal)
+	// This uses folder instead of cFolder since cFolder may contain the previous parent ID if a move operation was performed.
+	plan.FolderParentId = types.StringValue(folder.FolderParentID)
+
+	// Set state to fully populated data
+	diags = resp.State.Set(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 // Delete deletes the resource and removes the Terraform state on success.
-func (r *folderResource) Delete(_ context.Context, _ resource.DeleteRequest, _ *resource.DeleteResponse) {
+func (r *folderResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	// Retrieve values from plan
+	var state foldersModelCreate
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err := r.client.Client.DeleteFolder(r.client.Context, state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			fmt.Sprintf("failed to delete folder with ID: %s", state.ID.ValueString()),
+			err.Error(),
+		)
+		return
+	}
+
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }

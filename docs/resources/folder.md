@@ -35,6 +35,7 @@ resource "passbolt_folder" "full" {
 
 ### Optional
 
+- `folder_parent_id` (String) The ID of the parent folder
 - `personal` (Boolean) If the folder is a personal folder.
 
 ### Read-Only
