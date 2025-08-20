@@ -175,6 +175,7 @@ func (p *passboltProvider) DataSources(_ context.Context) []func() datasource.Da
 		NewFoldersDataSource,
 		NewPasswordDataSource,
 		NewShareDataSource,
+		NewRolesDataSource,
 	}
 }
 
@@ -184,5 +185,7 @@ func (p *passboltProvider) Resources(_ context.Context) []func() resource.Resour
 		NewFolderResource,
 		NewPasswordResource,
 		NewShareResource,
+		NewUserResource,
+		NewGroupResource,
 	}
 }
