@@ -176,6 +176,7 @@ func (p *passboltProvider) DataSources(_ context.Context) []func() datasource.Da
 		NewPasswordDataSource,
 		NewShareDataSource,
 		NewRolesDataSource,
+		NewUserDataSource,
 	}
 }
 
