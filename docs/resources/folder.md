@@ -21,7 +21,6 @@ resource "passbolt_folder" "basic" {
 # Full Passbolt Folder Configuration
 resource "passbolt_folder" "full" {
   name             = "My Folder"
-  personal         = true
   folder_parent_id = "Parent Folder"
 }
 ```
@@ -36,7 +35,6 @@ resource "passbolt_folder" "full" {
 ### Optional
 
 - `folder_parent_id` (String) The ID of the parent folder
-- `personal` (Boolean) If the folder is a personal folder.
 
 ### Read-Only
 

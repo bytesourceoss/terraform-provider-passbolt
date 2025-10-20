@@ -6,7 +6,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/passbolt/go-passbolt/api"
@@ -32,7 +31,6 @@ type folderResource struct {
 type foldersModelCreate struct {
 	ID             types.String `tfsdk:"id"`
 	Name           types.String `tfsdk:"name"`
-	Personal       types.Bool   `tfsdk:"personal"`
 	FolderParentId types.String `tfsdk:"folder_parent_id"`
 }
 
@@ -79,12 +77,6 @@ func (r *folderResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Computed:    true,
 				Default:     stringdefault.StaticString(""),
 			},
-			"personal": schema.BoolAttribute{
-				Description: "If the folder is a personal folder.",
-				Computed:    true,
-				Optional:    true,
-				Default:     booldefault.StaticBool(true),
-			},
 		},
 	}
 }
@@ -108,7 +100,6 @@ func (r *folderResource) Create(ctx context.Context, req resource.CreateRequest,
 	// Generate API request body from plan
 	var folder = api.Folder{
 		Name:           plan.Name.ValueString(),
-		Personal:       plan.Personal.ValueBool(),
 		FolderParentID: plan.FolderParentId.ValueString(),
 	}
 
@@ -130,6 +121,7 @@ func (r *folderResource) Create(ctx context.Context, req resource.CreateRequest,
 
 	// Map response body to schema and populate Computed attribute values
 	plan.ID = types.StringValue(cFolder.ID)
+	plan.FolderParentId = types.StringValue(cFolder.FolderParentID)
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, plan)
@@ -160,7 +152,6 @@ func (r *folderResource) Read(ctx context.Context, req resource.ReadRequest, res
 
 	state.ID = types.StringValue(folder.ID)
 	state.Name = types.StringValue(folder.Name)
-	state.Personal = types.BoolValue(folder.Personal)
 	state.FolderParentId = types.StringValue(folder.FolderParentID)
 
 	// Set state to fully populated data
@@ -184,7 +175,6 @@ func (r *folderResource) Update(ctx context.Context, req resource.UpdateRequest,
 	// Generate API request body from plan
 	var folder = api.Folder{
 		Name:           plan.Name.ValueString(),
-		Personal:       plan.Personal.ValueBool(),
 		FolderParentID: plan.FolderParentId.ValueString(),
 	}
 
@@ -215,7 +205,6 @@ func (r *folderResource) Update(ctx context.Context, req resource.UpdateRequest,
 	// Map response body to schema and populate Computed attribute values
 	plan.ID = types.StringValue(cFolder.ID)
 	plan.Name = types.StringValue(cFolder.Name)
-	plan.Personal = types.BoolValue(cFolder.Personal)
 	// This uses folder instead of cFolder since cFolder may contain the previous parent ID if a move operation was performed.
 	plan.FolderParentId = types.StringValue(folder.FolderParentID)
 
