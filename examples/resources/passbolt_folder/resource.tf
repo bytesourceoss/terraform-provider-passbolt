@@ -5,7 +5,7 @@ resource "passbolt_folder" "basic" {
 
 # Full Passbolt Folder Configuration
 resource "passbolt_folder" "full" {
-  name          = "My Folder"
-  personal      = true
-  folder_parent = "Parent Folder"
+  name             = "My Folder"
+  personal         = true
+  folder_parent_id = "Parent Folder"
 }
