@@ -32,9 +32,11 @@ type shareResource struct {
 // sharesResourceData create request
 type sharesResourceData struct {
 	Name             types.String `tfsdk:"name"`
+	ShareSourceID    types.String `tfsdk:"share_source_id"`
 	Type             types.String `tfsdk:"type"`
 	ShareTargetType  types.String `tfsdk:"share_target_type"`
 	ShareTargetValue types.String `tfsdk:"share_target_value"`
+	ShareTargetID    types.String `tfsdk:"share_target_id"`
 	SharePermission  types.String `tfsdk:"share_permission"`
 }
 
@@ -67,9 +69,15 @@ func (r *shareResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 	resp.Schema = schema.Schema{
 		Description: "A Passbolt Share Resource.",
 		Attributes: map[string]schema.Attribute{
+			"share_source_id": schema.StringAttribute{
+				Description: "The id of the resource to share",
+				Required:    false,
+				Optional:    true,
+			},
 			"name": schema.StringAttribute{
-				Description: "The name of the resource to share",
-				Required:    true,
+				Description: "The name of the resource to share (if not defined by shared_source_id)",
+				Required:    false,
+				Optional:    true,
 			},
 			"type": schema.StringAttribute{
 				Description: "The type of the resource to share, either: resource, folder",
@@ -80,9 +88,15 @@ func (r *shareResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Description: "The type of the share target, either: User, Group",
 				Required:    true,
 			},
+			"share_target_id": schema.StringAttribute{
+				Description: "The id of the share target.",
+				Required:    false,
+				Optional:    true,
+			},
 			"share_target_value": schema.StringAttribute{
-				Description: "The name-value of the share target. Looks up users username/email or groups name",
-				Required:    true,
+				Description: "The name-value of the share target. Looks up users username/email or groups name (if not defined by share_target_id)",
+				Required:    false,
+				Optional:    true,
 			},
 			"share_permission": schema.StringAttribute{
 				Description: "The share permission to apply, either: Read: 1, Update: 7, Owner: 15, Delete: -1",
@@ -127,9 +141,9 @@ func (r *shareResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	}
 
 	// read folders permission
-	pem, err := r.getPermissionEntry(ctx, data.Name.ValueString(), data.ShareTargetType.ValueString(), data.ShareTargetValue.ValueString())
+	pem, err := r.getPermissionEntry(ctx, data)
 	if err != nil {
-		resp.Diagnostics.AddError(fmt.Sprintf("failed to lookup permission, folder: %s, share-target: %s, share-value: %s", data.Name.ValueString(), data.ShareTargetType.ValueString(), data.ShareTargetValue.ValueString()), err.Error())
+		resp.Diagnostics.AddError(fmt.Sprintf("failed to lookup permission, source-id: %s, folder: %s, share-target: %s, target-id: %s, share-value: %s", data.ShareSourceID.ValueString(), data.Name.ValueString(), data.ShareTargetType.ValueString(), data.ShareTargetID.ValueString(), data.ShareTargetValue.ValueString()), err.Error())
 		return
 	}
 	if pem != nil {
@@ -171,9 +185,9 @@ func (r *shareResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
-	pem, err := r.getPermissionEntry(ctx, data.Name.ValueString(), data.ShareTargetType.ValueString(), data.ShareTargetValue.ValueString())
+	pem, err := r.getPermissionEntry(ctx, data)
 	if err != nil {
-		resp.Diagnostics.AddError(fmt.Sprintf("failed to lookup permission, folder: %s, share-target: %s, share-value: %s", data.Name.ValueString(), data.ShareTargetType.ValueString(), data.ShareTargetValue.ValueString()), err.Error())
+		resp.Diagnostics.AddError(fmt.Sprintf("failed to lookup permission, source-id: %s, folder: %s, share-target: %s, target-id: %s, share-value: %s", data.ShareSourceID.ValueString(), data.Name.ValueString(), data.ShareTargetType.ValueString(), data.ShareTargetID.ValueString(), data.ShareTargetValue.ValueString()), err.Error())
 		return
 	}
 	if pem == nil {
@@ -184,7 +198,7 @@ func (r *shareResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		pem.Delete = true
 		err := r.client.Client.ShareFolder(ctx, pem.ACOForeignKey, []api.Permission{*pem})
 		if err != nil {
-			resp.Diagnostics.AddError(fmt.Sprintf("failed to delete permission, folder: %s, share-target: %s, share-value: %s", data.Name.ValueString(), data.ShareTargetType.ValueString(), data.ShareTargetValue.ValueString()), err.Error())
+			resp.Diagnostics.AddError(fmt.Sprintf("failed to delete permission, source-id: %s, folder: %s, share-target: %s, target-id: %s, share-value: %s", data.ShareSourceID.ValueString(), data.Name.ValueString(), data.ShareTargetType.ValueString(), data.ShareTargetID.ValueString(), data.ShareTargetValue.ValueString()), err.Error())
 			return
 		}
 	}
@@ -199,10 +213,10 @@ func (r *shareResource) getAllGroups(ctx context.Context) ([]api.Group, error) {
 func (r *shareResource) getAllUsers(ctx context.Context) ([]api.User, error) {
 	return r.client.Client.GetUsers(ctx, &api.GetUsersOptions{})
 }
-func (r *shareResource) getPermissionEntry(ctx context.Context, folderName string, shareTargetType string, shareTargetValue string) (*api.Permission, error) {
-	folders, err := r.getAllFolders(ctx, folderName)
+func (r *shareResource) getPermissionEntry(ctx context.Context, data sharesResourceData) (*api.Permission, error) {
+	folders, err := r.getAllFolders(ctx, data.Name.ValueString())
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to lookup folder of: %s, err: %v", folderName, err.Error()))
+		return nil, errors.New(fmt.Sprintf("failed to lookup folder of: %s, err: %v", data.Name.ValueString(), err.Error()))
 	}
 	groups, err := r.getAllGroups(ctx)
 	if err != nil {
@@ -215,16 +229,16 @@ func (r *shareResource) getPermissionEntry(ctx context.Context, folderName strin
 	for _, el := range folders {
 		if el.Personal == false {
 			for _, pel := range el.Permissions {
-				if pel.ACO == "Folder" && pel.ARO == shareTargetType {
+				if pel.ACO == "Folder" && pel.ARO == data.ShareTargetType.ValueString() {
 					if pel.ARO == "User" {
 						for _, uel := range users {
-							if uel.Username == shareTargetValue && uel.ID == pel.AROForeignKey {
+							if uel.Username == data.ShareTargetValue.ValueString() && uel.ID == pel.AROForeignKey {
 								return &pel, nil
 							}
 						}
 					} else { // aro=Group
 						for _, gel := range groups {
-							if gel.Name == shareTargetValue && gel.ID == pel.AROForeignKey {
+							if gel.Name == data.ShareTargetValue.ValueString() && gel.ID == pel.AROForeignKey {
 								return &pel, nil
 							}
 						}
@@ -251,58 +265,61 @@ func (r *shareResource) setPermission(ctx context.Context, data sharesResourceDa
 		return errors.New(fmt.Sprintf("invalid share permission type, expected one of: -1,1,7,15, got input: %s", data.SharePermission.ValueString()))
 	}
 
-	folders, err := r.getAllFolders(ctx, data.Name.ValueString())
-	if err != nil {
-		return errors.New(fmt.Sprintf("failed to find folder of name: %s, err: %v", data.Name.ValueString(), err.Error()))
-	}
-	if len(folders) < 1 {
-		return errors.New(fmt.Sprintf("failed to find any folder of name: %s", data.Name.ValueString()))
-	}
-	var folder api.Folder
-	for _, el := range folders {
-		// TODO: do we want to apply requested permission to all found folders?
-		folder = el
-		break
-	}
-	if len(folder.ID) < 0 {
-		return errors.New(fmt.Sprintf("failed to find folder of name: %s", data.Name.ValueString()))
+	folderID := data.ShareSourceID.ValueString()
+	if len(folderID) < 1 {
+		folders, err := r.getAllFolders(ctx, data.Name.ValueString())
+		if err != nil {
+			return errors.New(fmt.Sprintf("failed to find folder of name: %s, err: %v", data.Name.ValueString(), err.Error()))
+		}
+		if len(folders) < 1 {
+			return errors.New(fmt.Sprintf("failed to find any folder of name: %s", data.Name.ValueString()))
+		}
+		if len(folders) > 1 {
+			return errors.New(fmt.Sprintf("multiple folder found for name: %s, abort", data.Name.ValueString()))
+		}
+		folderID = folders[0].ID
+		if len(folderID) < 1 {
+			return errors.New(fmt.Sprintf("failed to find folder of name: %s", data.Name.ValueString()))
+		}
 	}
 
-	aroID := ""
-	if data.ShareTargetType.ValueString() == "Group" {
-		groups, err := r.getAllGroups(ctx)
-		if err != nil {
-			return errors.New(fmt.Sprintf("failed to fetch groups, err: %v", err.Error()))
-		}
-		for _, el := range groups {
-			if el.Name == data.ShareTargetValue.ValueString() {
-				aroID = el.ID
-				break
+	aroID := data.ShareTargetID.ValueString()
+	if len(aroID) < 1 {
+		if data.ShareTargetType.ValueString() == "Group" {
+			groups, err := r.getAllGroups(ctx)
+			if err != nil {
+				return errors.New(fmt.Sprintf("failed to fetch groups, err: %v", err.Error()))
 			}
-		}
-	} else {
-		users, err := r.getAllUsers(ctx)
-		if err != nil {
-			return errors.New(fmt.Sprintf("failed to fetch users, err: %v", err.Error()))
-		}
-		for _, el := range users {
-			if el.Username == data.ShareTargetValue.ValueString() {
-				aroID = el.ID
-				break
+			for _, el := range groups {
+				if el.Name == data.ShareTargetValue.ValueString() {
+					aroID = el.ID
+					break
+				}
+			}
+		} else {
+			users, err := r.getAllUsers(ctx)
+			if err != nil {
+				return errors.New(fmt.Sprintf("failed to fetch users, err: %v", err.Error()))
+			}
+			for _, el := range users {
+				if el.Username == data.ShareTargetValue.ValueString() {
+					aroID = el.ID
+					break
+				}
 			}
 		}
 	}
 	if aroID == "" {
 		return errors.New(fmt.Sprintf("failed to find share target, type: %s, value: %s", data.ShareTargetType.ValueString(), data.ShareTargetValue.ValueString()))
 	}
-	if shareErr := helper.ShareFolder(ctx, r.client.Client, folder.ID, []helper.ShareOperation{
+	if shareErr := helper.ShareFolder(ctx, r.client.Client, folderID, []helper.ShareOperation{
 		{
 			Type:  pemTypeInt,
 			ARO:   data.ShareTargetType.ValueString(),
 			AROID: aroID,
 		},
 	}); shareErr != nil {
-		return errors.New(fmt.Sprintf("Failed to share resource, %s, %s, err: %v", folder.ID, aroID, shareErr.Error()))
+		return errors.New(fmt.Sprintf("Failed to share resource, %s, %s, err: %v", folderID, aroID, shareErr.Error()))
 	}
 	return nil
 }

@@ -86,28 +86,27 @@ data "passbolt_group" "group_open_bar" {
   name = "group-open-bar"
 }
 
-//data.passbolt_folder.folder_shared_bar.id
-//date.passbolt_group.group_open_bar.id
-
-//passbolt_folder.folder_shared_foo.id
-//passbolt_group.group_open_foo.id
-
-/*
-resource "passbolt_share" "share-folder-with-group-open" {
-  name               = passbolt_folder.folder_shared_foo.id
-  share_target_type  = "Group"
-  share_target_value = passbolt_group.group_open.id
-  share_permission   = "1"
-}
-*/
-
-
 resource "passbolt_share" "share-folder-with-group-open" {
   name               = "folder-shared"
   share_target_type  = "Group"
   share_target_value = "group-open"
   share_permission   = "1"
 }
+
+resource "passbolt_share" "share-folder-shared-foo-with-group-open-foo" {
+  share_source_id   = passbolt_folder.folder_shared_foo.id
+  share_target_type = "Group"
+  share_target_id   = passbolt_group.group_open_foo.id
+  share_permission  = "1"
+}
+resource "passbolt_share" "share-folder-shared-bar-with-group-open-bar" {
+  share_source_id   = data.passbolt_folder.folder_shared_bar.id
+  share_target_type = "Group"
+  share_target_id   = data.passbolt_group.group_open_bar.id
+  share_permission  = "1"
+}
+
+
 
 data "passbolt_share" "all" {}
 

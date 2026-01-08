@@ -37,12 +37,28 @@ resource "passbolt_share" "share-folder-with-group" {
   share_permission   = "-1"
 }
 
+data "passbolt_folder" "folder_shared_foobar" {
+  name = "folder-shared-foobar"
+}
+data "passbolt_group" "group_open_foobar" {
+  name = "group-open-foobar"
+}
+data "passbolt_user" "john_doe" {
+  username = "john_doe@example.com"
+}
+
 
 resource "passbolt_share" "share-folder-with-user" {
-  name               = "folder-name"
-  share_target_type  = "User"
-  share_target_value = "test@user.com"
-  share_permission   = "1"
+  share_source_id   = data.passbolt_folder.folder_shared_foobar.id
+  share_target_type = "Group"
+  share_target_id   = data.passbolt_group.group_open_foobar.id
+  share_permission  = "1"
+}
+resource "passbolt_share" "share-folder-with-user" {
+  share_source_id   = data.passbolt_folder.folder_shared_foobar.id
+  share_target_type = "User"
+  share_target_id   = data.passbolt_user.john_doe.users[0].id
+  share_permission  = "1"
 }
 ```
 
@@ -51,10 +67,15 @@ resource "passbolt_share" "share-folder-with-user" {
 
 ### Required
 
-- `name` (String) The name of the resource to share
 - `share_permission` (String) The share permission to apply, either: Read: 1, Update: 7, Owner: 15, Delete: -1
 - `share_target_type` (String) The type of the share target, either: User, Group
-- `share_target_value` (String) The name-value of the share target. Looks up users username/email or groups name
+
+### Optional
+
+- `name` (String) The name of the resource to share (if not defined by shared_source_id)
+- `share_source_id` (String) The id of the resource to share
+- `share_target_id` (String) The id of the share target.
+- `share_target_value` (String) The name-value of the share target. Looks up users username/email or groups name (if not defined by share_target_id)
 
 ### Read-Only
 
