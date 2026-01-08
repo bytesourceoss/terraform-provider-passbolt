@@ -21,3 +21,11 @@ resource "passbolt_share" "share-folder-with-group" {
   share_target_value = "shared-group"
   share_permission   = "-1"
 }
+
+
+resource "passbolt_share" "share-folder-with-user" {
+  name               = "folder-name"
+  share_target_type  = "User"
+  share_target_value = "test@user.com"
+  share_permission   = "1"
+}

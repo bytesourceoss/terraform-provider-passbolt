@@ -105,7 +105,6 @@ func (r *folderResource) Create(ctx context.Context, req resource.CreateRequest,
 
 	for _, el := range folders {
 		if el.Name == folder.Name && el.Personal == folder.Personal {
-			// folder already created
 			return
 		}
 	}

@@ -123,7 +123,7 @@ func (d *foldersDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		return
 	}
 
-	var reqModel foldersDataSourceModel
+	var reqModel foldersDataSourceBlockFilterModel
 	diags := req.Config.Get(ctx, &reqModel)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
