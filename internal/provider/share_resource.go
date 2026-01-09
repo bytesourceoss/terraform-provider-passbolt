@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -31,7 +30,7 @@ type shareResource struct {
 	client *PassboltClient
 }
 
-// sharesResourceData create request
+// sharesResourceData create request.
 type sharesResourceData struct {
 	Name             types.String `tfsdk:"name"`
 	ShareSourceID    types.String `tfsdk:"share_source_id"`
@@ -260,7 +259,7 @@ func (r *shareResource) getPermissionEntry(ctx context.Context, data sharesResou
 	if len(data.ShareTargetID.ValueString()) > 0 && data.ShareTargetType.ValueString() == "User" {
 		el, err := r.getUserOfID(ctx, data.ShareTargetID.ValueString())
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("failed to get user of id: %s, err: %v", data.ShareTargetType.ValueString(), err.Error()))
+			return nil, (fmt.Errorf("failed to get user of id: %s, err: %v", data.ShareTargetType.ValueString(), err.Error()))
 		}
 		if el == nil {
 			return nil, nil
@@ -269,14 +268,14 @@ func (r *shareResource) getPermissionEntry(ctx context.Context, data sharesResou
 	} else {
 		users, err = r.getAllUsers(ctx)
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("failed to fetch users, err: %v", err.Error()))
+			return nil, (fmt.Errorf("failed to fetch users, err: %v", err.Error()))
 		}
 	}
 
 	if len(data.ShareTargetID.ValueString()) > 0 && data.ShareTargetType.ValueString() == "Group" {
 		el, err := r.getGroupOfID(ctx, data.ShareTargetID.ValueString())
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("failed to get group of id: %s, err: %v", data.ShareSourceID.ValueString(), err.Error()))
+			return nil, (fmt.Errorf("failed to get group of id: %s, err: %v", data.ShareSourceID.ValueString(), err.Error()))
 		}
 		if el == nil {
 			return nil, nil
@@ -285,14 +284,14 @@ func (r *shareResource) getPermissionEntry(ctx context.Context, data sharesResou
 	} else {
 		groups, err = r.getAllGroups(ctx)
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("failed to fetch groups, err: %v", err.Error()))
+			return nil, (fmt.Errorf("failed to fetch groups, err: %v", err.Error()))
 		}
 	}
 
 	if len(data.ShareSourceID.ValueString()) > 0 {
 		el, err := r.getFolderOfID(ctx, data.ShareSourceID.ValueString())
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("failed to get folder of id: %s, err: %v", data.ShareSourceID.ValueString(), err.Error()))
+			return nil, (fmt.Errorf("failed to get folder of id: %s, err: %v", data.ShareSourceID.ValueString(), err.Error()))
 		}
 		if el == nil {
 			return nil, nil
@@ -301,12 +300,12 @@ func (r *shareResource) getPermissionEntry(ctx context.Context, data sharesResou
 	} else {
 		folders, err = r.getAllFolders(ctx, data.Name.ValueString())
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("failed to lookup folder of: %s, err: %v", data.Name.ValueString(), err.Error()))
+			return nil, (fmt.Errorf("failed to lookup folder of: %s, err: %v", data.Name.ValueString(), err.Error()))
 		}
 	}
 
 	for _, el := range folders {
-		if el.Personal == false {
+		if !el.Personal {
 			for _, pel := range el.Permissions {
 				if pel.ACO == "Folder" && pel.ARO == data.ShareTargetType.ValueString() {
 					if pel.ARO == "User" {
@@ -333,7 +332,7 @@ func (r *shareResource) setPermission(ctx context.Context, data sharesResourceDa
 	pemTypeInt := -1
 	switch data.SharePermission.ValueString() {
 	case "-1":
-		pemTypeInt = -1
+		//pemTypeInt = -1
 	case "1":
 		pemTypeInt = 1
 	case "7":
@@ -341,24 +340,24 @@ func (r *shareResource) setPermission(ctx context.Context, data sharesResourceDa
 	case "15":
 		pemTypeInt = 15
 	default:
-		return errors.New(fmt.Sprintf("invalid share permission type, expected one of: -1,1,7,15, got input: %s", data.SharePermission.ValueString()))
+		return (fmt.Errorf("invalid share permission type, expected one of: -1,1,7,15, got input: %s", data.SharePermission.ValueString()))
 	}
 
 	folderID := data.ShareSourceID.ValueString()
 	if len(folderID) < 1 {
 		folders, err := r.getAllFolders(ctx, data.Name.ValueString())
 		if err != nil {
-			return errors.New(fmt.Sprintf("failed to find folder of name: %s, err: %v", data.Name.ValueString(), err.Error()))
+			return (fmt.Errorf("failed to find folder of name: %s, err: %v", data.Name.ValueString(), err.Error()))
 		}
 		if len(folders) < 1 {
-			return errors.New(fmt.Sprintf("failed to find any folder of name: %s", data.Name.ValueString()))
+			return (fmt.Errorf("failed to find any folder of name: %s", data.Name.ValueString()))
 		}
 		if len(folders) > 1 {
-			return errors.New(fmt.Sprintf("multiple folder found for name: %s, abort", data.Name.ValueString()))
+			return (fmt.Errorf("multiple folder found for name: %s, abort", data.Name.ValueString()))
 		}
 		folderID = folders[0].ID
 		if len(folderID) < 1 {
-			return errors.New(fmt.Sprintf("failed to find folder of name: %s", data.Name.ValueString()))
+			return (fmt.Errorf("failed to find folder of name: %s", data.Name.ValueString()))
 		}
 	}
 
@@ -367,7 +366,7 @@ func (r *shareResource) setPermission(ctx context.Context, data sharesResourceDa
 		if data.ShareTargetType.ValueString() == "Group" {
 			groups, err := r.getAllGroups(ctx)
 			if err != nil {
-				return errors.New(fmt.Sprintf("failed to fetch groups, err: %v", err.Error()))
+				return (fmt.Errorf("failed to fetch groups, err: %v", err.Error()))
 			}
 			for _, el := range groups {
 				if el.Name == data.ShareTargetValue.ValueString() {
@@ -378,7 +377,7 @@ func (r *shareResource) setPermission(ctx context.Context, data sharesResourceDa
 		} else {
 			users, err := r.getAllUsers(ctx)
 			if err != nil {
-				return errors.New(fmt.Sprintf("failed to fetch users, err: %v", err.Error()))
+				return (fmt.Errorf("failed to fetch users, err: %v", err.Error()))
 			}
 			for _, el := range users {
 				if el.Username == data.ShareTargetValue.ValueString() {
@@ -389,7 +388,7 @@ func (r *shareResource) setPermission(ctx context.Context, data sharesResourceDa
 		}
 	}
 	if aroID == "" {
-		return errors.New(fmt.Sprintf("failed to find share target, type: %s, value: %s", data.ShareTargetType.ValueString(), data.ShareTargetValue.ValueString()))
+		return (fmt.Errorf("failed to find share target, type: %s, value: %s", data.ShareTargetType.ValueString(), data.ShareTargetValue.ValueString()))
 	}
 	if shareErr := helper.ShareFolder(ctx, r.client.Client, folderID, []helper.ShareOperation{
 		{
@@ -398,7 +397,7 @@ func (r *shareResource) setPermission(ctx context.Context, data sharesResourceDa
 			AROID: aroID,
 		},
 	}); shareErr != nil {
-		return errors.New(fmt.Sprintf("Failed to share resource, %s, %s, err: %v", folderID, aroID, shareErr.Error()))
+		return (fmt.Errorf("Failed to share resource, %s, %s, err: %v", folderID, aroID, shareErr.Error()))
 	}
 	return nil
 }

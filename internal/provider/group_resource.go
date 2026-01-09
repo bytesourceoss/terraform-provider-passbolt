@@ -27,7 +27,7 @@ type groupResource struct {
 	client *PassboltClient
 }
 
-// created, modified
+// created, modified.
 type groupModel struct {
 	ID         types.String      `tfsdk:"id"`
 	Name       types.String      `tfsdk:"name"`
@@ -167,7 +167,7 @@ func (r *groupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	groups, err := r.client.Client.GetGroups(r.client.Context, opts)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			fmt.Sprintf("failed to get groups"),
+			"failed to get groups",
 			err.Error(),
 		)
 		return

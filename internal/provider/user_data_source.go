@@ -31,7 +31,7 @@ type usersDataSourceModel struct {
 	Users    []usersReadModel `tfsdk:"users"`
 }
 
-// created, modified
+// created, modified.
 type usersReadModel struct {
 	ID           types.String `tfsdk:"id"`
 	UserName     types.String `tfsdk:"username"`

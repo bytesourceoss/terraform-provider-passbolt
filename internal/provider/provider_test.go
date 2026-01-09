@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -34,9 +33,9 @@ func TestConfigure(t *testing.T) {
 	p := New("test")()
 	resp := provider.ConfigureResponse{}
 
-	os.Setenv("PASSBOLT_URL", "https://test.example.com")
-	os.Setenv("PASSBOLT_KEY", "--- TEST KEY ---")
-	os.Setenv("PASSBOLT_PASS", "TestKeyPassword")
+	t.Setenv("PASSBOLT_URL", "https://test.example.com")
+	t.Setenv("PASSBOLT_KEY", "--- TEST KEY ---")
+	t.Setenv("PASSBOLT_PASS", "TestKeyPassword")
 
 	p.Configure(context.TODO(), provider.ConfigureRequest{}, &resp)
 }
