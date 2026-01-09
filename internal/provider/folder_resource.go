@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -105,7 +106,6 @@ func (r *folderResource) Create(ctx context.Context, req resource.CreateRequest,
 
 	for _, el := range folders {
 		if el.Name == folder.Name && el.Personal == folder.Personal {
-			// folder already created
 			return
 		}
 	}
@@ -122,6 +122,10 @@ func (r *folderResource) Create(ctx context.Context, req resource.CreateRequest,
 	// Map response body to schema and populate Computed attribute values
 	plan.ID = types.StringValue(cFolder.ID)
 	plan.FolderParentId = types.StringValue(cFolder.FolderParentID)
+
+	// wait a bit for folder creation.
+	// api behaves odd, as new folder might not be found right after creation
+	time.Sleep(time.Second * 1)
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, plan)

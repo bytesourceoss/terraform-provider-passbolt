@@ -172,11 +172,13 @@ func (p *passboltProvider) Configure(ctx context.Context, req provider.Configure
 // DataSources defines the data sources implemented in the provider.
 func (p *passboltProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		NewFolderDataSource,
 		NewFoldersDataSource,
 		NewPasswordDataSource,
 		NewShareDataSource,
 		NewRolesDataSource,
 		NewUserDataSource,
+		NewGroupDataSource,
 	}
 }
 
