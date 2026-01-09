@@ -28,7 +28,7 @@ type userResource struct {
 	client *PassboltClient
 }
 
-// created, modified
+// created, modified.
 type usersModel struct {
 	ID        types.String `tfsdk:"id"`
 	Role      types.String `tfsdk:"role"`

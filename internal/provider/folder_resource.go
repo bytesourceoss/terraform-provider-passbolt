@@ -28,7 +28,7 @@ type folderResource struct {
 	client *PassboltClient
 }
 
-// created, modified
+// created, modified.
 type foldersModelCreate struct {
 	ID             types.String `tfsdk:"id"`
 	Name           types.String `tfsdk:"name"`
