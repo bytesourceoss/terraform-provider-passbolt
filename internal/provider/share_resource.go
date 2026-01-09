@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -205,27 +207,104 @@ func (r *shareResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 }
 
 func (r *shareResource) getAllFolders(ctx context.Context, search string) ([]api.Folder, error) {
-	return r.client.Client.GetFolders(ctx, &api.GetFoldersOptions{FilterSearch: search, ContainPermission: true, ContainPermissions: true, ContainPermissionUserProfile: true, ContainPermissionGroup: true})
+	// wait a bit to mitigate folder creation time
+	// api behaves odd, as new folder might not be found right after creation
+	time.Sleep(time.Second * 1)
+
+	list, err := r.client.Client.GetFolders(ctx, &api.GetFoldersOptions{FilterSearch: search, ContainPermission: true, ContainPermissions: true, ContainPermissionUserProfile: true, ContainPermissionGroup: true})
+	if err != nil {
+		return list, err
+	}
+	exactMatchList := make([]api.Folder, 0)
+	for _, el := range list {
+		if search == el.Name {
+			exactMatchList = append(exactMatchList, el)
+		}
+	}
+	return exactMatchList, err
+}
+func (r *shareResource) getFolderOfID(ctx context.Context, folderID string) (*api.Folder, error) {
+	resp, err := r.client.Client.GetFolder(ctx, folderID, &api.GetFolderOptions{ContainPermission: true, ContainPermissions: true, ContainPermissionUserProfile: true, ContainPermissionGroup: true})
+	if err != nil && strings.Contains(err.Error(), "The folder does not exist") {
+		return nil, nil
+	}
+	return resp, err
 }
 func (r *shareResource) getAllGroups(ctx context.Context) ([]api.Group, error) {
 	return r.client.Client.GetGroups(ctx, &api.GetGroupsOptions{})
 }
+func (r *shareResource) getGroupOfID(ctx context.Context, groupID string) (*api.Group, error) {
+	resp, err := r.client.Client.GetGroup(ctx, groupID)
+	if err != nil && strings.Contains(err.Error(), "The group does not exist") {
+		return nil, nil
+	}
+	return resp, err
+}
 func (r *shareResource) getAllUsers(ctx context.Context) ([]api.User, error) {
 	return r.client.Client.GetUsers(ctx, &api.GetUsersOptions{})
 }
+func (r *shareResource) getUserOfID(ctx context.Context, userID string) (*api.User, error) {
+	resp, err := r.client.Client.GetUser(ctx, userID)
+	if err != nil && strings.Contains(err.Error(), "The user does not exist") {
+		return nil, nil
+	}
+	return resp, err
+}
+
 func (r *shareResource) getPermissionEntry(ctx context.Context, data sharesResourceData) (*api.Permission, error) {
-	folders, err := r.getAllFolders(ctx, data.Name.ValueString())
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to lookup folder of: %s, err: %v", data.Name.ValueString(), err.Error()))
+	var err error
+	users := make([]api.User, 0)
+	groups := make([]api.Group, 0)
+	folders := make([]api.Folder, 0)
+
+	if len(data.ShareTargetID.ValueString()) > 0 && data.ShareTargetType.ValueString() == "User" {
+		el, err := r.getUserOfID(ctx, data.ShareTargetID.ValueString())
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("failed to get user of id: %s, err: %v", data.ShareTargetType.ValueString(), err.Error()))
+		}
+		if el == nil {
+			return nil, nil
+		}
+		users = append(users, *el)
+	} else {
+		users, err = r.getAllUsers(ctx)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("failed to fetch users, err: %v", err.Error()))
+		}
 	}
-	groups, err := r.getAllGroups(ctx)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to fetch groups, err: %v", err.Error()))
+
+	if len(data.ShareTargetID.ValueString()) > 0 && data.ShareTargetType.ValueString() == "Group" {
+		el, err := r.getGroupOfID(ctx, data.ShareTargetID.ValueString())
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("failed to get group of id: %s, err: %v", data.ShareSourceID.ValueString(), err.Error()))
+		}
+		if el == nil {
+			return nil, nil
+		}
+		groups = append(groups, *el)
+	} else {
+		groups, err = r.getAllGroups(ctx)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("failed to fetch groups, err: %v", err.Error()))
+		}
 	}
-	users, err := r.getAllUsers(ctx)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to fetch users, err: %v", err.Error()))
+
+	if len(data.ShareSourceID.ValueString()) > 0 {
+		el, err := r.getFolderOfID(ctx, data.ShareSourceID.ValueString())
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("failed to get folder of id: %s, err: %v", data.ShareSourceID.ValueString(), err.Error()))
+		}
+		if el == nil {
+			return nil, nil
+		}
+		folders = append(folders, *el)
+	} else {
+		folders, err = r.getAllFolders(ctx, data.Name.ValueString())
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("failed to lookup folder of: %s, err: %v", data.Name.ValueString(), err.Error()))
+		}
 	}
+
 	for _, el := range folders {
 		if el.Personal == false {
 			for _, pel := range el.Permissions {

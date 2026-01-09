@@ -70,8 +70,9 @@ data "passbolt_folder" "folder_shared" {
 }
 
 resource "passbolt_folder" "folder_shared_foo" {
-  name             = "folder-shared-foo"
-  folder_parent_id = data.passbolt_folder.folder_shared.id
+  name = "folder-shared-foo"
+  #folder_parent_id = data.passbolt_folder.folder_shared.id
+  folder_parent_id = passbolt_folder.folder_shared.id
 }
 resource "passbolt_folder" "folder_shared_bar" {
   name             = "folder-shared-bar"
@@ -86,23 +87,24 @@ data "passbolt_group" "group_open_bar" {
   name = "group-open-bar"
 }
 
-resource "passbolt_share" "share-folder-with-group-open" {
+resource "passbolt_share" "share_folder_with_group_open" {
   name               = "folder-shared"
   share_target_type  = "Group"
   share_target_value = "group-open"
   share_permission   = "1"
 }
 
-resource "passbolt_share" "share-folder-shared-foo-with-group-open-foo" {
+resource "passbolt_share" "share_folder_shared_foo_with_group_open_foo" {
   share_source_id   = passbolt_folder.folder_shared_foo.id
   share_target_type = "Group"
   share_target_id   = passbolt_group.group_open_foo.id
   share_permission  = "1"
 }
-resource "passbolt_share" "share-folder-shared-bar-with-group-open-bar" {
-  share_source_id   = data.passbolt_folder.folder_shared_bar.id
+
+resource "passbolt_share" "share_folder_shared_bar_with_group_open_bar" {
+  share_source_id   = passbolt_folder.folder_shared_bar.id
   share_target_type = "Group"
-  share_target_id   = data.passbolt_group.group_open_bar.id
+  share_target_id   = passbolt_group.group_open_bar.id
   share_permission  = "1"
 }
 
@@ -113,4 +115,14 @@ data "passbolt_share" "all" {}
 output "share" {
   # `value` will be a list of all available share
   value = data.passbolt_share.all
+}
+
+output "share1" {
+  value = passbolt_share.share_folder_with_group_open
+}
+output "share2" {
+  value = passbolt_share.share_folder_shared_foo_with_group_open_foo
+}
+output "share3" {
+  value = passbolt_share.share_folder_shared_bar_with_group_open_bar
 }
